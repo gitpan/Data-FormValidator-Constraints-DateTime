@@ -4,3 +4,4 @@ MANIFEST			This list of files
 t/all.t
 META.yml
 Makefile.PL
+Changes

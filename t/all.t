@@ -2,7 +2,8 @@ use Test::More;
 use strict;
 use Data::FormValidator;
 use DateTime;
-plan(tests => 47);
+#plan(tests => 47);
+plan('no_plan');
 
 # 1
 use_ok('Data::FormValidator::Constraints::DateTime');
@@ -128,6 +129,42 @@ SKIP: {
             like($date, qr/2005-02-17 00:00:00(\.000000000\+0000)?/, 'pg_datetime correct format');
         }
     }
+}
+
+# 48..51
+# ymd_to_datetime
+{
+    # just ymd
+    my $profile = {
+        validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+        required                => [qw(my_year)],
+        constraints             => {
+            my_year => {
+                constraint_method => 'ymd_to_datetime',
+                params            => [qw(my_year my_month my_day)],
+            },
+        },
+        untaint_all_constraints => 1,
+    };
+    my %data = (
+        my_year     => 2005,
+        my_month    => 2,
+        my_day      => 17,
+    );
+    $results = Data::FormValidator->check(\%data, $profile);
+    ok( $results->valid('my_year'), 'ymd_to_datetime: correct');
+    isa_ok( $results->valid('my_year'), 'DateTime');
+
+    # now with hms
+    $profile->{constraints}->{my_year}->{params} =
+        [qw(my_year my_month my_day my_hour my_min my_sec)];
+    $data{my_hour} = 14;
+    $data{my_min}  = 6;
+    $data{my_sec}  = 14;
+
+    $results = Data::FormValidator->check(\%data, $profile);
+    ok( $results->valid('my_year'), 'ymd_to_datetime: correct');
+    isa_ok( $results->valid('my_year'), 'DateTime');
 }
 
 sub _make_constraints {

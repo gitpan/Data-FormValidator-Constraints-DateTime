@@ -3,7 +3,7 @@ use strict;
 use DateTime;
 use DateTime::Format::Strptime;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -11,16 +11,15 @@ Data::FormValidator::Constraints::DateTime - D::FV constraints for dates and tim
 
 =head1 DESCRIPTION
 
-The package provides constraint routines for Data::FormValidator for
+This package provides constraint routines for Data::FormValidator for
 dealing with dates and times. It provides an easy mechanism for validating
-dates of any format (using strptime(3)) and transforming those dates into
-valid DateTime objects, or into strings that would be properly formatted for
-various database engines.
+dates of any format (using strptime(3)) and transforming those dates (as long
+as you 'untaint' the fields) into valid L<DateTime> objects, or into strings 
+that would be properly formatted for various database engines.
 
 =head1 ABSTRACT
 
   use Data::FormValidator;
-  use Data::FormValidator::Constraints::DateTime qw(:all);
     
   # create our profile
   my $profile = {
@@ -42,13 +41,16 @@ various database engines.
   unless( $results->has_missing || $results->has_invalid ) {
     # if we got here then $results->valid('my_date')
     # is a valid DateTime object 
+    my $datetime = $results->valid('my_date');
+    .
+    .
   }
 
 =head1 STRPTIME FORMATS
 
-All of the validation routines exported by this module use
+Most of the validation routines provided by this module use
 strptime(3) format strings to know what format your date string
-is in before we can process it. You specify this format foreach
+is in before we can process it. You specify this format for each
 date you want to validate using the 'params' array ref (see the
 example above).
 
@@ -91,7 +93,7 @@ with a format param
 
 =head1 VALIDATION ROUTINES
 
-Following is a list of validation subroutines that can be exported
+Following is the list of validation routines that are provided
 by this module.
 
 =head2 to_datetime
@@ -108,11 +110,11 @@ sub match_to_datetime {
     # else as 'constaint'
     my $value = ref $self ? $self->get_current_constraint_value : $self;
     # get the DateTime
-    my $dt = _get_datetime($value, $format);
+    my $dt = _get_datetime_from_strp($value, $format);
     return $dt;
 }
 
-sub _get_datetime {
+sub _get_datetime_from_strp {
     my ($value, $format) = @_;
     $format = $$format;
     # create the formatter
@@ -126,6 +128,67 @@ sub _get_datetime {
         if( $dt );
     return $dt;
 }
+
+=head2 ymd_to_datetime
+
+This routine is used to take multiple inputs (one each for the
+year, month, and day) and combine them into a L<DateTime> object,
+validate the resulting date, and give you the resulting DateTime
+object in your C<< valid() >> results. It must recieve as C<< params >>
+the year, month, and day inputs in that order. You may also specify
+additional C<< params >> that will be interpretted as 'hour', 'minute'
+and 'second' values to use. If none are provided, then the time '00:00:00'
+will be used.
+
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(my_year)],
+   constraints             => {
+      my_year => {
+        constraint_method => 'ymd_to_datetime',
+                             # my_hour, my_min, and my_sec are optional
+        params            => [qw(my_year my_month my_day my_hour my_min my_sec)],
+      },
+   },
+   untaint_all_constraints => 1,
+ };
+ my $results = Data::FormValidator->check($data, $profile);
+
+ #if the date was valid, then we how have a DateTime object
+ my $datetime = $results->valid('my_year');
+
+=cut
+
+sub match_ymd_to_datetime {
+    my $self = shift;
+    my ($year, $month, $day, $hour, $min, $sec);
+    # if we were called as a 'constraint_method'
+    if( ref $self ) {
+        ($year, $month, $day, $hour, $min, $sec) = @_;
+    # else we were called as a 'constraint'
+    } else {
+        ($year, $month, $day, $hour, $min, $sec) = ($self, @_);
+    }
+    # set the defaults for time if we don't have any
+    $hour ||= 0;
+    $min  ||= 0;
+    $sec  ||= 0;
+
+    my $dt;
+    eval {
+        $dt = DateTime->new(
+            year    => $year,
+            month   => $month,
+            day     => $day,
+            hour    => $hour,
+            minute  => $min,
+            second  => $sec,
+        );
+    };
+    return $dt;
+}
+
+=head1 DATABASE VALIDATION ROUTINES
 
 =head2 to_mysql_datetime
 
@@ -151,7 +214,7 @@ sub match_to_mysql_datetime {
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
     if( ref $format eq 'SCALAR' ) {
-        $dt = _get_datetime($value, $format);
+        $dt = _get_datetime_from_strp($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
         eval { $dt = DateTime::Format::MySQL->parse_datetime($value) };
@@ -187,7 +250,7 @@ sub match_to_mysql_date {
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
     if( ref $format eq 'SCALAR' ) {
-        $dt = _get_datetime($value, $format);
+        $dt = _get_datetime_from_strp($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
         eval { $dt = DateTime::Format::MySQL->parse_date($value) };
@@ -212,17 +275,12 @@ sub match_to_mysql_timestamp {
     # if $self is a ref then we are called as 'constraint_method'
     # else as 'constaint'
     my $value = ref $self ? $self->get_current_constraint_value : $self;
-
-    # make sure they have DateTime::Format::MySQL
-    eval { require DateTime::Format::MySQL; };
-    die "DateTime::Format::MySQL is required to use this routine"
-        if( $@ );
     my $dt;
 
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
     if( ref $format eq 'SCALAR' ) {
-        $dt = _get_datetime($value, $format);
+        $dt = _get_datetime_from_strp($value, $format);
     # else there is no format, so parse into a timestamp
     } else {
         # if it matches a timestamp format YYYYMMDDHHMMSS
@@ -272,7 +330,7 @@ sub match_to_pg_datetime {
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
     if( ref $format eq 'SCALAR' ) {
-        $dt = _get_datetime($value, $format);
+        $dt = _get_datetime_from_strp($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
         eval { $dt = DateTime::Format::Pg->parse_datetime($value) };
@@ -303,7 +361,7 @@ Thanks to Plus Three, LP (http://www.plusthree.com) for sponsoring my work on th
 
 =head1 SUPPORT
 
-This module is a part of the large L<Data::FormValidator> project. If you have
+This module is a part of the larger L<Data::FormValidator> project. If you have
 questions, comments, bug reports or feature requests, please join the 
 L<Data::FormValidator>'s mailing list.
 
