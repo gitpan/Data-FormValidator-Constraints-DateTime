@@ -3,7 +3,7 @@ use strict;
 use DateTime;
 use DateTime::Format::Strptime;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -63,8 +63,31 @@ param. These include routines which try and validate according
 to rules for a particular database (C<< to_mysql_* >> and 
 C<< to_pg_* >>). If no format is provided, then we will attempt to
 validate according to the rules for that datatype in that database
-(using L<DateTime::Format::MySQL> and L<DateTime::Format::Pg>). See
-each validation routine for examples.
+(using L<DateTime::Format::MySQL> and L<DateTime::Format::Pg>).
+Here are some examples:
+
+without a format param
+
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(my_date)],
+   constraints             => {
+       my_date => 'to_mysql_datetime',
+   },
+ };
+
+with a format param
+
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(my_date)],
+   constraints             => {
+       my_date => {
+         constraint_method => 'to_mysql_datetime',
+         params            => [\'%m/%d/%Y'],
+   },
+ };
+
 
 =head1 VALIDATION ROUTINES
 
@@ -73,19 +96,24 @@ by this module.
 
 =head2 to_datetime
 
-The routine will change the date string into a DateTime object
+The routine will validate the date aginst a strptime(3) format and
+change the date string into a DateTime object. This
+is the only routine that B<must> have an accompanying format param.
 
 =cut
 
 sub match_to_datetime {
     my ($self, $format) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
     # get the DateTime
-    my $dt = _get_datetime($self, $format);
+    my $dt = _get_datetime($value, $format);
     return $dt;
 }
 
 sub _get_datetime {
-    my ($self, $format) = @_;
+    my ($value, $format) = @_;
     $format = $$format;
     # create the formatter
     my $formatter = DateTime::Format::Strptime->new(
@@ -93,7 +121,7 @@ sub _get_datetime {
     );
     my $dt;
     # create the DateTime object
-    eval { $dt = $formatter->parse_datetime($self->get_current_constraint_value); };
+    eval { $dt = $formatter->parse_datetime($value); };
     $dt->set_formatter($formatter)
         if( $dt );
     return $dt;
@@ -102,12 +130,17 @@ sub _get_datetime {
 =head2 to_mysql_datetime
 
 The routine will change the date string into a DATETIME datatype
-suitable for MySQL
+suitable for MySQL. If you don't provide a format parameter then
+this routine will just validate the data as a valid MySQL DATETIME
+datatype (using L<DateTime::Format::MySQL>).
 
 =cut
 
 sub match_to_mysql_datetime {
     my ($self, $format) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
 
     # make sure they have DateTime::Format::MySQL
     eval { require DateTime::Format::MySQL; };
@@ -118,14 +151,10 @@ sub match_to_mysql_datetime {
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
     if( ref $format eq 'SCALAR' ) {
-        $dt = _get_datetime($self, $format);
+        $dt = _get_datetime($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
-        eval { 
-            $dt = DateTime::Format::MySQL->parse_datetime(
-                $self->get_current_constraint_value
-            );
-        };
+        eval { $dt = DateTime::Format::MySQL->parse_datetime($value) };
     }
     if( $dt ) {
         return DateTime::Format::MySQL->format_datetime($dt); 
@@ -137,12 +166,17 @@ sub match_to_mysql_datetime {
 =head2 to_mysql_date
 
 The routine will change the date string into a DATE datatype
-suitable for MySQL
+suitable for MySQL. If you don't provide a format param then
+this routine will validate the data as a valid DATE datatype
+in MySQL (using L<DateTime::Format::MySQL>).
 
 =cut
 
 sub match_to_mysql_date {
     my ($self, $format) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
 
     # make sure they have DateTime::Format::MySQL
     eval { require DateTime::Format::MySQL; };
@@ -153,14 +187,10 @@ sub match_to_mysql_date {
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
     if( ref $format eq 'SCALAR' ) {
-        $dt = _get_datetime($self, $format);
+        $dt = _get_datetime($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
-        eval { 
-            $dt = DateTime::Format::MySQL->parse_date(
-                $self->get_current_constraint_value
-            );
-        };
+        eval { $dt = DateTime::Format::MySQL->parse_date($value) };
     }
     if( $dt ) {
         return DateTime::Format::MySQL->format_date($dt);
@@ -172,12 +202,16 @@ sub match_to_mysql_date {
 =head2 to_mysql_timestamp
 
 The routine will change the date string into a TIMESTAMP datatype
-suitable for MySQL
+suitable for MySQL. If you don't provide a format then the data
+will be validated as a MySQL TIMESTAMP datatype.
 
 =cut
 
 sub match_to_mysql_timestamp {
     my ($self, $format) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
 
     # make sure they have DateTime::Format::MySQL
     eval { require DateTime::Format::MySQL; };
@@ -188,14 +222,13 @@ sub match_to_mysql_timestamp {
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
     if( ref $format eq 'SCALAR' ) {
-        $dt = _get_datetime($self, $format);
+        $dt = _get_datetime($value, $format);
     # else there is no format, so parse into a timestamp
     } else {
-        my $string = $self->get_current_constraint_value();
         # if it matches a timestamp format YYYYMMDDHHMMSS
         # but we're actually a little looser than that... we take
         # YYYY-MM-DD HH:MM:SS with any other potential separators
-        if( $string =~ /(\d{4})\D*(\d{2})\D*(\d{2})\D*(\d{2})\D*(\d{2})\D*(\d{2})/ ) {
+        if( $value =~ /(\d{4})\D*(\d{2})\D*(\d{2})\D*(\d{2})\D*(\d{2})\D*(\d{2})/ ) {
             eval { 
                 $dt = DateTime->new(
                     year    => $1,
@@ -218,12 +251,17 @@ sub match_to_mysql_timestamp {
 =head2 to_pg_datetime
 
 The routine will change the date string into a DATETIME datatype
-suitable for PostgreSQL
+suitable for PostgreSQL. If you don't provide a format then the
+data will validated as a DATETIME datatype in PostgresSQL (using
+L<DateTime::Format::Pg>).
 
 =cut
 
 sub match_to_pg_datetime {
     my ($self, $format) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
 
     # make sure they have DateTime::Format::MySQL
     eval { require DateTime::Format::Pg; };
@@ -234,14 +272,10 @@ sub match_to_pg_datetime {
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
     if( ref $format eq 'SCALAR' ) {
-        $dt = _get_datetime($self, $format);
+        $dt = _get_datetime($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
-        eval {
-            $dt = DateTime::Format::Pg->parse_datetime(
-                $self->get_current_constraint_value
-            );
-        };
+        eval { $dt = DateTime::Format::Pg->parse_datetime($value) };
     }
     if( $dt ) {
         return DateTime::Format::Pg->format_datetime($dt);

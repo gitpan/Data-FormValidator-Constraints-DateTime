@@ -130,20 +130,20 @@ SKIP: {
     }
 }
 
-
 sub _make_constraints {
     my $method = shift;
     my $no_params = shift;
     my %constraints;
 
     foreach my $input (@inputs) {
-        my %hash = (
-            constraint_method   => $method,
-        );
-        unless( $no_params ) {
-            $hash{params} = [\$format];
+        if( $no_params ) {
+            $constraints{$input} = $method;
+        } else {
+            $constraints{$input} = {
+                constraint_method   => $method,
+                params              => [\$format],
+            };
         }
-        $constraints{$input} = \%hash;
     }
     return \%constraints;
 };
