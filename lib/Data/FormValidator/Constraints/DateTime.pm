@@ -4,7 +4,7 @@ use base 'Exporter';
 use DateTime;
 use DateTime::Format::Strptime;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 our @EXPORT_OK = qw(
     match_to_datetime
     match_to_mysql_datetime

@@ -7,11 +7,9 @@ WriteMakefile
           'NAME' => 'Data::FormValidator::Constraints::DateTime',
           'VERSION_FROM' => 'lib/Data/FormValidator/Constraints/DateTime.pm',
           'PREREQ_PM' => {
-                           'DateTime::Format::MySQL' => '0.0301',
                            'DateTime' => '0.23',
                            'DateTime::Format::Strptime' => '1.00',
-                           'Data::FormValidator' => '3.61',
-                           'DateTime::Format::Pg' => '0.050'
+                           'Data::FormValidator' => '3.61'
                          }
         )
 ;

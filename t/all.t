@@ -2,110 +2,119 @@ use Test::More;
 use strict;
 use Data::FormValidator;
 use DateTime;
-plan(tests => 13);
+plan(tests => 17);
 
 # 1
 use_ok('Data::FormValidator::Constraints::DateTime');
 Data::FormValidator::Constraints::DateTime->import();
-my $format = '%m/%d/%Y';
-my $good_date = '02/17/2005';
-my $bad_date = '02/31/2005';
-
-my $profile = {
+my $format      = '%m/%d/%Y';
+my $good_date   = '02/17/2005';
+my $unreal_date = '02/31/2005';
+my $bad_date    = '0/312/005';
+my $profile     = {
     validator_packages      => ['Data::FormValidator::Constraints::DateTime'], 
-    required                => [qw(
-        datetime_good           datetime_bad
-        mysql_datetime_good     mysql_datetime_bad
-        mysql_date_good         mysql_date_bad
-        mysql_timestamp_good    mysql_timestamp_bad
-        pg_datetime_good        pg_datetime_bad
-    )],
-    constraints             => {
-        datetime_good           => {
-            constraint_method       => 'to_datetime',
-            params                  => [\$format],
-        },
-        datetime_bad            => {
-            constraint_method       => 'to_datetime',
-            params                  => [\$format],
-        },
-        mysql_datetime_good     => {
-            constraint_method       => 'to_mysql_datetime',
-            params                  => [\$format],
-        },
-        mysql_datetime_bad      => {
-            constraint_method       => 'to_mysql_datetime',
-            params                  => [\$format],
-        },
-        mysql_date_good         => {
-            constraint_method       => 'to_mysql_date',
-            params                  => [\$format],
-        },
-        mysql_date_bad          => {
-            constraint_method       => 'to_mysql_date',
-            params                  => [\$format],
-        },
-        mysql_timestamp_good    => {
-            constraint_method       => 'to_mysql_timestamp',
-            params                  => [\$format],
-        },
-        mysql_timestamp_bad     => {
-            constraint_method       => 'to_mysql_timestamp',
-            params                  => [\$format],
-        },
-        pg_datetime_good        => {
-            constraint_method       => 'to_pg_datetime',
-            params                  => [\$format],
-        },
-        pg_datetime_bad         => {
-            constraint_method       => 'to_pg_datetime',
-            params                  => [\$format],
-        },
-    },
+    required                => [qw(good bad unreal)],
     untaint_all_constraints => 1,
 };
+my $data        = {
+    good   => $good_date,
+    unreal => $unreal_date,
+    bad    => $bad_date,
+};
+my $results;
 
-my $data = {
-    datetime_good           => $good_date,
-    datetime_bad            => $bad_date,
-    mysql_datetime_good     => $good_date,
-    mysql_datetime_bad      => $bad_date,
-    mysql_date_good         => $good_date,
-    mysql_date_bad          => $bad_date,
-    mysql_timestamp_good    => $good_date,
-    mysql_timestamp_bad     => $bad_date,
-    pg_datetime_good        => $good_date,
-    pg_datetime_bad         => $bad_date,
+# 2._5
+# to_datetime
+{
+    $profile->{constraints} = _make_constraints('to_datetime');
+    $results = Data::FormValidator->check($data, $profile);
+    ok( $results->valid('good'), 'datetime expected valid');
+    ok( $results->invalid('bad'), 'datetime expected invalid');
+    my $date = $results->valid('good');
+    isa_ok( $date, 'DateTime');
+    is( "$date", $good_date, 'DateTime stringifies correctly');
 };
 
-my $results = Data::FormValidator->check($data, $profile);
 
-# 2..5
-# to_datetime
-ok( $results->valid('datetime_good'), 'datetime expected valid');
-ok( $results->invalid('datetime_bad'), 'datetime expected invalid');
-my $dt = $results->valid('datetime_good');
-isa_ok( $dt, 'DateTime');
-is( "$dt", $good_date, 'DateTime stringifies correctly');
+# test to see if we have DateTime::Format::MySQL
+my $HAVE_DT_FORMAT_MYSQL = 0;
+eval { require DateTime::Format::MySQL };
+$HAVE_DT_FORMAT_MYSQL = 1 if( !$@ );
 
-# 6..7
-# to_mysql_datetime
-ok( $results->valid('mysql_datetime_good'), 'mysql_datetime expected valid');
-ok( $results->invalid('mysql_datetime_bad'), 'mysql_datetime expected invalid');
+SKIP: {
+    skip('DateTime::Format::MySQL not installed', 9)
+        unless $HAVE_DT_FORMAT_MYSQL;
 
-# 8..9
-# to_mysql_date
-ok( $results->valid('mysql_date_good'), 'mysql_date expected valid');
-ok( $results->invalid('mysql_date_bad'), 'mysql_date expected invalid');
+    # 6..8
+    # to_mysql_datetime
+    {
+        $profile->{constraints} = _make_constraints('to_mysql_datetime');
+        $results = Data::FormValidator->check($data, $profile);
+        ok( $results->valid('good'), 'mysql_datetime expected valid');
+        ok( $results->invalid('bad'), 'mysql_datetime expected invalid');
+        my $date = $results->valid('good');
+        is($date, '2005-02-17 00:00:00', 'mysql_datetime correct format');
+    }
+    
+    # 9..11
+    # to_mysql_date
+    {
+        $profile->{constraints} = _make_constraints('to_mysql_date');
+        $results = Data::FormValidator->check($data, $profile);
+        ok( $results->valid('good'), 'mysql_date expected valid');
+        ok( $results->invalid('bad'), 'mysql_date expected invalid');
+        my $date = $results->valid('good');
+        is($date, '2005-02-17', 'mysql_date correct format');
+    }
+    
+    # 12..14
+    # to_mysql_timestamp
+    {
+        $profile->{constraints} = _make_constraints('to_mysql_timestamp');
+        $results = Data::FormValidator->check($data, $profile);
+        ok( $results->valid('good'), 'mysql_timestamp expected valid');
+        ok( $results->invalid('bad'), 'mysql_timestamp expected invalid');
+        my $date = $results->valid('good');
+        is($date, '20050217000000', 'mysql_timestamp correct format');
+    }
+}
 
-# 10..11
-# to_mysql_timestamp
-ok( $results->valid('mysql_timestamp_good'), 'mysql_timestamp expected valid');
-ok( $results->invalid('mysql_timestamp_bad'), 'mysql_timestamp expected invalid');
+# test to see if we have DateTime::Format::Pg
+my $HAVE_DT_FORMAT_PG = 0;
+eval { require DateTime::Format::Pg };
+$HAVE_DT_FORMAT_PG = 1 if( !$@ );
 
-# 12..13
-# to_pg_datetime
-ok( $results->valid('pg_datetime_good'), 'pg_datetime expected valid');
-ok( $results->invalid('pg_datetime_bad'), 'pg_datetime expected invalid');
+SKIP: {
+    skip('DateTime::Format::Pg not installed', 3)
+        unless $HAVE_DT_FORMAT_PG;
+    # 15..17
+    # to_pg_datetime
+    {
+        $profile->{constraints} = _make_constraints('to_pg_datetime');
+        $results = Data::FormValidator->check($data, $profile);
+        ok( $results->valid('good'), 'pg_datetime expected valid');
+        ok( $results->invalid('bad'), 'pg_datetime expected invalid');
+        my $date = $results->valid('good');
+        is($date, '2005-02-17 00:00:00.000000000+0000', 'pg_datetime correct format');
+    }
+}
 
 
+sub _make_constraints {
+    my $method = shift;
+    my $constraints = {
+        good    => {
+            constraint_method => $method,
+            params            => [\$format],
+        },
+        bad     => {
+            constraint_method => $method,
+            params            => [\$format],
+        },
+        unreal  => {
+            constraint_method => $method,
+            params            => [\$format],
+        },
+    };
+    return $constraints;
+};

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: Data-FormValidator-Constraints-DateTime
-version: 0.01
+version: 0.02
 author:
   - Michael Peters <mpeters@plusthree.com>
 abstract: D::FV constraints for dates and times
