@@ -3,7 +3,7 @@ use strict;
 use DateTime;
 use DateTime::Format::Strptime;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 NAME
 
@@ -169,23 +169,32 @@ sub match_ymd_to_datetime {
     } else {
         ($year, $month, $day, $hour, $min, $sec) = ($self, @_);
     }
-    # set the defaults for time if we don't have any
-    $hour ||= 0;
-    $min  ||= 0;
-    $sec  ||= 0;
-
-    my $dt;
-    eval {
-        $dt = DateTime->new(
-            year    => $year,
-            month   => $month,
-            day     => $day,
-            hour    => $hour,
-            minute  => $min,
-            second  => $sec,
-        );
-    };
-    return $dt;
+    # make sure year, month and day are positive numbers
+    if( 
+        defined $year && $year ne "" 
+        && defined $month && $month ne "" 
+        && defined $day && $day ne "" 
+    ) {
+        # set the defaults for time if we don't have any
+        $hour ||= 0;
+        $min  ||= 0;
+        $sec  ||= 0;
+    
+        my $dt;
+        eval {
+            $dt = DateTime->new(
+                year    => $year,
+                month   => $month,
+                day     => $day,
+                hour    => $hour,
+                minute  => $min,
+                second  => $sec,
+            );
+        };
+        return $dt;
+    } else {
+        return;
+    }
 }
 
 =head1 DATABASE VALIDATION ROUTINES

@@ -1,5 +1,9 @@
 Revision history for Perl extension Data::FormValidator::Constraints::DateTime
 
+0.06 (Feb. 22, 2005)
+    - ymd_to_datetime() routine will now not accept
+        empty strings as valid date portions
+
 0.05 (Feb. 21, 2005)
     - added Changes to MANIFEST
     - added ymd_to_datetime() validation routine

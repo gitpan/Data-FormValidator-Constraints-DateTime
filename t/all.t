@@ -2,8 +2,7 @@ use Test::More;
 use strict;
 use Data::FormValidator;
 use DateTime;
-#plan(tests => 47);
-plan('no_plan');
+plan(tests => 52);
 
 # 1
 use_ok('Data::FormValidator::Constraints::DateTime');
@@ -131,7 +130,7 @@ SKIP: {
     }
 }
 
-# 48..51
+# 48..52
 # ymd_to_datetime
 {
     # just ymd
@@ -165,6 +164,11 @@ SKIP: {
     $results = Data::FormValidator->check(\%data, $profile);
     ok( $results->valid('my_year'), 'ymd_to_datetime: correct');
     isa_ok( $results->valid('my_year'), 'DateTime');
+
+    # make sure it fails if a value is defined but not a number
+    $data{my_month} = "";
+    $results = Data::FormValidator->check(\%data, $profile);
+    ok( $results->invalid('my_year'), 'ymd_to_datetime: invalid date');
 }
 
 sub _make_constraints {
