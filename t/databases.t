@@ -2,7 +2,7 @@ use Test::More;
 use strict;
 use Data::FormValidator;
 use DateTime;
-plan(tests => 52);
+plan(tests => 64);
 
 # 1
 use_ok('Data::FormValidator::Constraints::DateTime');
@@ -17,7 +17,6 @@ my $profile         = {
     validator_packages      => ['Data::FormValidator::Constraints::DateTime'], 
     required                => \@inputs,
     untaint_all_constraints => 1,
-    debug                   => 1,
 };
 my $DATA            = {
     good    => $good_date,
@@ -25,22 +24,12 @@ my $DATA            = {
     bad     => $bad_date,
     realbad => $real_bad_date,
 };
+
+my $WITHOUT_PARAMS          = 0;
+my $WITH_PARAMS             = 1;
+my $WITH_PARAMS_METHOD      = 2;
+
 my ($results, $date);
-
-# 2..7
-# to_datetime
-{
-    $profile->{constraints} = _make_constraints('to_datetime');
-    $results = Data::FormValidator->check($DATA, $profile);
-    ok( $results->valid('good'), 'datetime expected valid');
-    ok( $results->invalid('bad'), 'datetime expected invalid');
-    ok( $results->invalid('realbad'), 'datetime expected invalid');
-    ok( $results->invalid('unreal'), 'datetime expected invalid');
-    $date = $results->valid('good');
-    isa_ok( $date, 'DateTime');
-    is( "$date", $good_date, 'DateTime stringifies correctly');
-};
-
 
 # test to see if we have DateTime::Format::MySQL
 my $HAVE_DT_FORMAT_MYSQL = 0;
@@ -48,17 +37,19 @@ eval { require DateTime::Format::MySQL };
 $HAVE_DT_FORMAT_MYSQL = 1 if( !$@ );
 
 SKIP: {
-    skip('DateTime::Format::MySQL not installed', 9)
+    skip('DateTime::Format::MySQL not installed', 45)
         unless $HAVE_DT_FORMAT_MYSQL;
 
-    # 8..17
+    # 2..16
     # to_mysql_datetime
     {
-        # with params and without
-        foreach my $without_params (0,1) {
-            $profile->{constraints} = _make_constraints('to_mysql_datetime', $without_params);
+        # with params and without both as a constraint_method and as a constraint
+        foreach my $option (
+                    $WITHOUT_PARAMS, $WITH_PARAMS, $WITH_PARAMS_METHOD, 
+        ) {
+            $profile->{constraints} = _make_constraints('to_mysql_datetime', $option);
             my %data = %$DATA;
-            $data{good} = '2005-02-17 00:00:00' if( $without_params );
+            $data{good} = '2005-02-17 00:00:00' if( $option == $WITHOUT_PARAMS );
             $results = Data::FormValidator->check(\%data, $profile);
             ok( $results->valid('good'), 'mysql_datetime expected valid');
             ok( $results->invalid('bad'), 'mysql_datetime expected invalid');
@@ -69,14 +60,16 @@ SKIP: {
         }
     }
     
-    # 18..27
+    # 17..31
     # to_mysql_date
     {
-        # with params and without
-        foreach my $without_params (0,1) {
-            $profile->{constraints} = _make_constraints('to_mysql_date', $without_params);
+        # with params and without both as a constraint_method and as a constraint
+        foreach my $option (
+                    $WITHOUT_PARAMS, $WITH_PARAMS, $WITH_PARAMS_METHOD
+        ) {
+            $profile->{constraints} = _make_constraints('to_mysql_date', $option);
             my %data = %$DATA;
-            $data{good} = '2005-02-17' if( $without_params );
+            $data{good} = '2005-02-17' if( $option == $WITHOUT_PARAMS );
             $results = Data::FormValidator->check(\%data, $profile);
             ok( $results->valid('good'), 'mysql_date expected valid');
             ok( $results->invalid('bad'), 'mysql_date expected invalid');
@@ -87,13 +80,16 @@ SKIP: {
         }
     }
     
-    # 28..37
+    # 32..46
     # to_mysql_timestamp
     {
-        foreach my $without_params (0,1) {
-            $profile->{constraints} = _make_constraints('to_mysql_timestamp', $without_params);
+        # with params and without both as a constraint_method and as a constraint
+        foreach my $option (
+                    $WITHOUT_PARAMS, $WITH_PARAMS, $WITH_PARAMS_METHOD
+        ) {
+            $profile->{constraints} = _make_constraints('to_mysql_timestamp', $option);
             my %data = %$DATA;
-            $data{good} = '20050217000000' if( $without_params );
+            $data{good} = '20050217000000' if( $option == $WITHOUT_PARAMS );
             $results = Data::FormValidator->check(\%data, $profile);
             ok( $results->valid('good'), 'mysql_timestamp expected valid');
             ok( $results->invalid('bad'), 'mysql_timestamp expected invalid');
@@ -105,20 +101,51 @@ SKIP: {
     }
 }
 
+# 47..48
+# let's remove DateTime::Format::MySQL from %INC (if it's there) and make 
+# sure our constraints notice
+{
+    my @SAVED_INC = ();
+    my ($module, $path);
+    if( $HAVE_DT_FORMAT_MYSQL ) {
+        @SAVED_INC = @INC;
+        @INC = ();
+        $module = 'DateTime/Format/MySQL.pm';
+        $path = delete $INC{$module};
+    }
+    # mysql_datetime
+    $profile->{constraints} = _make_constraints('to_mysql_datetime', $WITHOUT_PARAMS);
+    eval { $results = Data::FormValidator->check($DATA, $profile, $WITHOUT_PARAMS) };
+    like( $@, qr/DateTime::Format::MySQL is required/, 'missing module');
+
+    # mysql_date
+    $profile->{constraints} = _make_constraints('to_mysql_date', $WITHOUT_PARAMS);
+    eval { $results = Data::FormValidator->check($DATA, $profile) };
+    like( $@, qr/DateTime::Format::MySQL is required/, 'missing module');
+
+    if( $HAVE_DT_FORMAT_MYSQL ) {
+        @INC = @SAVED_INC;
+        $INC{$module} = $path;
+    }
+}
+
 # test to see if we have DateTime::Format::Pg
 my $HAVE_DT_FORMAT_PG = 0;
 eval { require DateTime::Format::Pg };
 $HAVE_DT_FORMAT_PG = 1 if( !$@ );
 
 SKIP: {
-    skip('DateTime::Format::Pg not installed', 3)
+    skip('DateTime::Format::Pg not installed', 15)
         unless $HAVE_DT_FORMAT_PG;
-    # 38..47
+    # 49..63
     # to_pg_datetime
     {
-        foreach my $without_params (0,1) {
-            $profile->{constraints} = _make_constraints('to_pg_datetime', $without_params);
+        # with params and without both as a constraint_method and as a constraint
+        foreach my $option (
+                    $WITHOUT_PARAMS, $WITH_PARAMS, $WITH_PARAMS_METHOD
+        ) {
             my %data = %$DATA;
+            $profile->{constraints} = _make_constraints('to_pg_datetime', $option);
             $results = Data::FormValidator->check(\%data, $profile);
             ok( $results->valid('good'), 'pg_datetime expected valid');
             ok( $results->invalid('bad'), 'pg_datetime expected invalid');
@@ -130,56 +157,43 @@ SKIP: {
     }
 }
 
-# 48..52
-# ymd_to_datetime
+# 64
+# let's remove DateTime::Format::Pg from %INC (if it's there) and make
+# sure our constraints notice
 {
-    # just ymd
-    my $profile = {
-        validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
-        required                => [qw(my_year)],
-        constraints             => {
-            my_year => {
-                constraint_method => 'ymd_to_datetime',
-                params            => [qw(my_year my_month my_day)],
-            },
-        },
-        untaint_all_constraints => 1,
-    };
-    my %data = (
-        my_year     => 2005,
-        my_month    => 2,
-        my_day      => 17,
-    );
-    $results = Data::FormValidator->check(\%data, $profile);
-    ok( $results->valid('my_year'), 'ymd_to_datetime: correct');
-    isa_ok( $results->valid('my_year'), 'DateTime');
+    my @SAVED_INC = ();
+    my ($module, $path);
+    if( $HAVE_DT_FORMAT_PG ) {
+        @SAVED_INC = @INC;
+        @INC = ();
+        $module = 'DateTime/Format/Pg.pm';
+        $path = delete $INC{$module};
+    }
+    # pg_datetime
+    $profile->{constraints} = _make_constraints('to_pg_datetime', $WITHOUT_PARAMS);
+    eval { $results = Data::FormValidator->check($DATA, $profile, $WITHOUT_PARAMS) };
+    like( $@, qr/DateTime::Format::Pg is required/, 'missing module');
 
-    # now with hms
-    $profile->{constraints}->{my_year}->{params} =
-        [qw(my_year my_month my_day my_hour my_min my_sec)];
-    $data{my_hour} = 14;
-    $data{my_min}  = 6;
-    $data{my_sec}  = 14;
-
-    $results = Data::FormValidator->check(\%data, $profile);
-    ok( $results->valid('my_year'), 'ymd_to_datetime: correct');
-    isa_ok( $results->valid('my_year'), 'DateTime');
-
-    # make sure it fails if a value is defined but not a number
-    $data{my_month} = "";
-    $results = Data::FormValidator->check(\%data, $profile);
-    ok( $results->invalid('my_year'), 'ymd_to_datetime: invalid date');
+    if( $HAVE_DT_FORMAT_PG ) {
+        @INC = @SAVED_INC;
+        $INC{$module} = $path;
+    }
 }
 
+
 sub _make_constraints {
-    my $method = shift;
-    my $no_params = shift;
+    my ($method, $option) = @_;
     my %constraints;
 
     foreach my $input (@inputs) {
-        if( $no_params ) {
+        if( $option == $WITHOUT_PARAMS ) {
             $constraints{$input} = $method;
-        } else {
+        } elsif( $option == $WITH_PARAMS ) {
+            $constraints{$input} = {
+                constraint  => $method,
+                params      => [$input, \$format],
+            };
+        } elsif( $option == $WITH_PARAMS_METHOD ) {
             $constraints{$input} = {
                 constraint_method   => $method,
                 params              => [\$format],

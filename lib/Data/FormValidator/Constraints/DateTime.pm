@@ -3,7 +3,7 @@ use strict;
 use DateTime;
 use DateTime::Format::Strptime;
 
-our $VERSION = '0.06';
+our $VERSION = '1.00';
 
 =head1 NAME
 
@@ -11,7 +11,7 @@ Data::FormValidator::Constraints::DateTime - D::FV constraints for dates and tim
 
 =head1 DESCRIPTION
 
-This package provides constraint routines for Data::FormValidator for
+This package provides constraint routines for L<Data::FormValidator> for
 dealing with dates and times. It provides an easy mechanism for validating
 dates of any format (using strptime(3)) and transforming those dates (as long
 as you 'untaint' the fields) into valid L<DateTime> objects, or into strings 
@@ -99,8 +99,8 @@ by this module.
 =head2 to_datetime
 
 The routine will validate the date aginst a strptime(3) format and
-change the date string into a DateTime object. This
-is the only routine that B<must> have an accompanying format param.
+change the date string into a DateTime object. This routine B<must> 
+have an accompanying format param.
 
 =cut
 
@@ -160,15 +160,16 @@ will be used.
 =cut
 
 sub match_ymd_to_datetime {
-    my $self = shift;
-    my ($year, $month, $day, $hour, $min, $sec);
+    my ($self, $year, $month, $day, $hour, $min, $sec);
+
     # if we were called as a 'constraint_method'
-    if( ref $self ) {
-        ($year, $month, $day, $hour, $min, $sec) = @_;
+    if( ref $_[0] ) {
+        ($self, $year, $month, $day, $hour, $min, $sec) = @_;
     # else we were called as a 'constraint'
     } else {
-        ($year, $month, $day, $hour, $min, $sec) = ($self, @_);
+        ($year, $month, $day, $hour, $min, $sec) = @_;
     }
+        
     # make sure year, month and day are positive numbers
     if( 
         defined $year && $year ne "" 
@@ -197,7 +198,173 @@ sub match_ymd_to_datetime {
     }
 }
 
-=head1 DATABASE VALIDATION ROUTINES
+=head2 before_datetime
+
+This routine will validate the date and make sure it occurs before
+the specified date. It takes two params: 
+
+=over
+
+=item * first, the strptime format 
+
+(for both the date we are validating and also the date we want to 
+compare against) 
+
+=item * second, the date we are comparing against. 
+
+This date we are comparing against can either be a specified date (using 
+a scalar ref), or a named parameter from your form (using a scalar name).
+
+=back
+
+If it validates and you tell D::FV to untaint this parameter it will be
+converted into a DateTime object.
+
+ # make sure they were born before 1979
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(birth_date)],
+   constraints             => {
+      birth_date => {
+        constraint_method => 'before_datetime',
+        params            => ['%m/%d/%Y', \'01/01/1979'],
+      },
+   },
+   untaint_all_constraints => 1,
+ };
+
+=cut
+
+sub match_before_datetime {
+    my ($self, $format, $target_date) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    # get the DateTime
+    my $dt = _get_datetime_from_strp($value, $format);
+    my $dt_target = _get_datetime_from_strp($$target_date, $format);
+    # if we have valid DateTime objects and they have the correct
+    # temporaral relationship
+    if( $dt && $dt_target && $dt < $dt_target ) {
+        return $dt;
+    } else {
+        return;
+    }
+}
+
+=head2 after_datetime
+
+This routine will validate the date and make sure it occurs after
+the specified date. It takes two params: 
+
+=over
+
+=item * first, the strptime format 
+
+(for both the date we are validating and also the date we want to 
+compare against)
+
+=item * second, the date we are comparing against. 
+
+This date we are comparing against can either be a specified date (using a 
+scalar ref), or a named parameter from your form (using a scalar name).
+
+=back
+
+ # make sure they died after they were born
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(birth_date death_date)],
+   constraints             => {
+      death_date => {
+        constraint_method => 'after_datetime',
+        params            => ['%m/%d/%Y', 'birth_date'],
+      },
+   },
+   untaint_all_constraints => 1,
+ };
+
+=cut
+
+sub match_after_datetime {
+    my ($self, $format, $target_date) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    # get the DateTime
+    my $dt = _get_datetime_from_strp($value, $format);
+    my $dt_target = _get_datetime_from_strp($$target_date, $format);
+    # if we have valid DateTime objects and they have the correct
+    # temporaral relationship
+    if( $dt && $dt_target && $dt > $dt_target ) {
+        return $dt;
+    } else {
+        return;
+    }
+}
+
+=head2 between_datetimes
+
+This routine will validate the date and make sure it occurs after
+the first specified date and before the second specified date. It 
+takes three params: 
+
+=over
+
+=item * first, the strptime format 
+
+(for both the date we are validating and also the dates we want to 
+compare against)
+
+=item * second, the first date we are comparing against. 
+
+=item * third, the second date we are comparing against. 
+
+This date (and the second) we are comparing against can either be a specified date 
+(using a scalar ref), or a named parameter from your form (using a scalar name).
+
+=back
+
+ # make sure they died after they were born
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(birth_date death_date marriage_date)],
+   constraints             => {
+      marriage_date => {
+        constraint_method => 'between_datetimes',
+        params            => ['%m/%d/%Y', 'birth_date', 'death_date'],
+      },
+   },
+   untaint_all_constraints => 1,
+ };
+
+=cut
+
+sub match_between_datetimes {
+    my ($self, $format, $target1_date, $target2_date) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    # get the DateTime
+    my $dt = _get_datetime_from_strp($value, $format);
+    my $dt_target1 = _get_datetime_from_strp($$target1_date, $format);
+    my $dt_target2 = _get_datetime_from_strp($$target2_date, $format);
+    # if we have valid DateTime objects and they have the correct
+    # temporaral relationship
+    if( 
+        $dt 
+        && $dt_target1 
+        && $dt_target2 
+        && $dt > $dt_target1 
+        && $dt < $dt_target2 
+    ) {
+        return $dt;
+    } else {
+        return;
+    }
+}
+
+=head1 DATABASE RELATED VALIDATION ROUTINES
 
 =head2 to_mysql_datetime
 

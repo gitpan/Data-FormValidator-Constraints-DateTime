@@ -1,7 +1,8 @@
 Build.PL
 lib/Data/FormValidator/Constraints/DateTime.pm
 MANIFEST			This list of files
-t/all.t
+t/dates.t
+t/databases.t
 META.yml
 Makefile.PL
 Changes
