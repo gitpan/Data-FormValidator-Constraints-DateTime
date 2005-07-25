@@ -1,5 +1,8 @@
 Revision history for Perl extension Data::FormValidator::Constraints::DateTime
 
+1.01 (Jul. 25, 2005)
+    - added before_today() and after_today() routines
+
 1.00 (Mar. 03, 2005)
     - added before_datetime(), after_datetime(), and between_datetimes()
         routines

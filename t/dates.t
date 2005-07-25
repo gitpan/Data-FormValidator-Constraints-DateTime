@@ -2,7 +2,7 @@ use Test::More;
 use strict;
 use Data::FormValidator;
 use DateTime;
-plan(tests => 85);
+plan(tests => 105);
 
 # 1
 use_ok('Data::FormValidator::Constraints::DateTime');
@@ -12,7 +12,8 @@ my $good_date       = '02-17-2005';
 my $unreal_date     = '02-31-2005';
 my $bad_date        = '0-312-005';
 my $real_bad_date   = '2';
-# these are relatvie to the above $good_date;
+my $today           = DateTime->today->mdy('-');
+# these are relative to the above $good_date;
 my $distant_future_date = '03-03-2110'; 
 my $future_date         = '03-03-2010'; 
 my $past_date           = '03-03-1979';
@@ -127,7 +128,67 @@ my $distant_past_date   = '03-03-1879';
     }
 }
 
-# 34..49
+# 34..43
+# before_today
+{
+    my %data = (
+        good    => $past_date,
+        bad     => $future_date,
+        today   => $today,
+    );
+    my %profile = (
+        validator_packages      => ['Data::FormValidator::Constraints::DateTime'],
+        required                => [keys %data],
+        untaint_all_constraints => 1,
+    );
+    foreach my $as_method (0..1) {
+        $profile{constraints} = _make_constraints(
+            routine     => 'before_today',
+            as_method   => $as_method,
+            params      => [\$format],
+            inputs      => [keys %data],
+        );
+        my $results = Data::FormValidator->check(\%data, \%profile);
+        ok( $results->valid('good'), 'datetime expected valid');
+        ok( $results->valid('today'), 'datetime expected valid');
+        ok( $results->invalid('bad'), 'datetime expected invalid');
+        my $date = $results->valid('good');
+        isa_ok( $date, 'DateTime');
+        is( "$date", $past_date, 'DateTime stringifies correctly');
+    }
+}
+
+# 44..53
+# after_today
+{
+    my %data = (
+        good    => $future_date,
+        bad     => $past_date,
+        today   => $today,
+    );
+    my %profile = (
+        validator_packages      => ['Data::FormValidator::Constraints::DateTime'],
+        required                => [keys %data],
+        untaint_all_constraints => 1,
+    );
+    foreach my $as_method (0..1) {
+        $profile{constraints} = _make_constraints(
+            routine     => 'after_today',
+            as_method   => $as_method,
+            params      => [\$format],
+            inputs      => [keys %data],
+        );
+        my $results = Data::FormValidator->check(\%data, \%profile);
+        ok( $results->valid('good'), 'datetime expected valid');
+        ok( $results->valid('today'), 'datetime expected valid');
+        ok( $results->invalid('bad'), 'datetime expected invalid');
+        my $date = $results->valid('good');
+        isa_ok( $date, 'DateTime');
+        is( "$date", $future_date, 'DateTime stringifies correctly');
+    }
+}
+
+# 54..69
 # before_datetime
 {
     my %data = (
@@ -172,7 +233,7 @@ my $distant_past_date   = '03-03-1879';
     }
 }
 
-# 50..65
+# 70..85
 # after_datetime
 {
     my %data = (
@@ -218,7 +279,7 @@ my $distant_past_date   = '03-03-1879';
 }
 
 
-# 66..85
+# 86..105
 # between_datetimes
 {
     my %data = (

@@ -3,7 +3,7 @@ use strict;
 use DateTime;
 use DateTime::Format::Strptime;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 =head1 NAME
 
@@ -192,6 +192,89 @@ sub match_ymd_to_datetime {
                 second  => $sec,
             );
         };
+        return $dt;
+    } else {
+        return;
+    }
+}
+
+=head2 before_today
+
+This routine will validate the date and make sure it less than or
+equal to today (using C<< DateTime->today >>). It takes one param
+which is the strptime format string for the date.
+
+If it validates and you tell D::FV to untaint this parameter it will be
+converted into a DateTime object.
+
+ # make sure they weren't born in the future
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(birth_date)],
+   constraints             => {
+      birth_date => {
+        constraint_method => 'before_today',
+        params            => ['%m/%d/%Y'],
+      },
+   },
+   untaint_all_constraints => 1,
+ };
+
+=cut
+
+sub match_before_today {
+    my ($self, $format) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    # get the DateTime
+    my $dt = _get_datetime_from_strp($value, $format);
+    my $dt_target = DateTime->today();
+    # if we have valid DateTime objects and they have the correct
+    # temporaral relationship
+    if( $dt && $dt_target && $dt <= $dt_target ) {
+        return $dt;
+    } else {
+        return;
+    }
+}
+
+=head2 after_today
+
+This routine will validate the date and make sure it is greater
+than or equal to today (using C<< DateTime->today() >>). It takes
+only one param, which is the strptime format for the date being
+validated.
+
+If it validates and you tell D::FV to untaint this parameter it will be
+converted into a DateTime object.
+
+ # make sure they died after they were born
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(due_date)],
+   constraints             => {
+      death_date => {
+        constraint_method => 'after_today',
+        params            => ['%m/%d/%Y'],
+      },
+   },
+   untaint_all_constraints => 1,
+ };
+
+=cut
+
+sub match_after_today {
+    my ($self, $format) = @_;
+    # if $self is a ref then we are called as 'constraint_method'
+    # else as 'constaint'
+    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    # get the DateTime
+    my $dt = _get_datetime_from_strp($value, $format);
+    my $dt_target = DateTime->today();
+    # if we have valid DateTime objects and they have the correct
+    # temporaral relationship
+    if( $dt && $dt_target && $dt >= $dt_target ) {
         return $dt;
     } else {
         return;
