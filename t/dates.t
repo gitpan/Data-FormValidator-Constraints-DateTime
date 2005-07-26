@@ -2,7 +2,7 @@ use Test::More;
 use strict;
 use Data::FormValidator;
 use DateTime;
-plan(tests => 105);
+plan(tests => 113);
 
 # 1
 use_ok('Data::FormValidator::Constraints::DateTime');
@@ -188,7 +188,101 @@ my $distant_past_date   = '03-03-1879';
     }
 }
 
-# 54..69
+# 54..57
+# ymd_before_today
+{
+    # split it up into ymd
+    my @good_parts = split(/-/, $past_date);
+    my @bad_parts = split(/-/, $future_date);
+    my @today_parts = split(/-/, $today);
+
+    my %data = (
+        good_m  => $good_parts[0],
+        good_d  => $good_parts[1],
+        good_y  => $good_parts[2],
+        bad_m   => $bad_parts[0],
+        bad_d   => $bad_parts[1],
+        bad_y   => $bad_parts[2],
+        today_m => $today_parts[0],
+        today_d => $today_parts[1],
+        today_y => $today_parts[2],
+    );
+    my %profile = (
+        validator_packages      => ['Data::FormValidator::Constraints::DateTime'],
+        required                => [qw(good_y bad_y today_y)],
+        untaint_all_constraints => 1,
+        constraints             => {
+            good_y   => {
+                constraint_method => 'ymd_before_today',
+                params            => [qw(good_y good_m good_d)],
+            },
+            bad_y    => {
+                constraint_method => 'ymd_before_today',
+                params            => [qw(bad_y bad_m bad_d)],
+            },
+            today_y  => {
+                constraint_method => 'ymd_before_today',
+                params            => [qw(today_y today_m today_d)],
+            },
+        },
+    );
+
+    my $results = Data::FormValidator->check(\%data, \%profile);
+    ok( $results->valid('good_y'), 'datetime expected valid');
+    ok( $results->invalid('bad_y'), 'datetime expected invalid');
+    ok( $results->valid('today_y'), 'datetime expected valid');
+    my $date = $results->valid('good_y');
+    isa_ok( $date, 'DateTime');
+}
+
+# 58..61
+# ymd_after_today
+{
+    # split it up into ymd
+    my @good_parts = split(/-/, $future_date);
+    my @bad_parts = split(/-/, $past_date);
+    my @today_parts = split(/-/, $today);
+
+    my %data = (
+        good_m  => $good_parts[0],
+        good_d  => $good_parts[1],
+        good_y  => $good_parts[2],
+        bad_m   => $bad_parts[0],
+        bad_d   => $bad_parts[1],
+        bad_y   => $bad_parts[2],
+        today_m => $today_parts[0],
+        today_d => $today_parts[1],
+        today_y => $today_parts[2],
+    );
+    my %profile = (
+        validator_packages      => ['Data::FormValidator::Constraints::DateTime'],
+        required                => [qw(good_y bad_y today_y)],
+        untaint_all_constraints => 1,
+        constraints             => {
+            good_y   => {
+                constraint_method => 'ymd_after_today',
+                params            => [qw(good_y good_m good_d)],
+            },
+            bad_y    => {
+                constraint_method => 'ymd_after_today',
+                params            => [qw(bad_y bad_m bad_d)],
+            },
+            today_y  => {
+                constraint_method => 'ymd_after_today',
+                params            => [qw(today_y today_m today_d)],
+            },
+        },
+    );
+
+    my $results = Data::FormValidator->check(\%data, \%profile);
+    ok( $results->valid('good_y'), 'datetime expected valid');
+    ok( $results->invalid('bad_y'), 'datetime expected invalid');
+    ok( $results->valid('today_y'), 'datetime expected valid');
+    my $date = $results->valid('good_y');
+    isa_ok( $date, 'DateTime');
+}
+
+# 62..77
 # before_datetime
 {
     my %data = (
@@ -233,7 +327,7 @@ my $distant_past_date   = '03-03-1879';
     }
 }
 
-# 70..85
+# 78..93
 # after_datetime
 {
     my %data = (
@@ -279,7 +373,7 @@ my $distant_past_date   = '03-03-1879';
 }
 
 
-# 86..105
+# 94..113
 # between_datetimes
 {
     my %data = (

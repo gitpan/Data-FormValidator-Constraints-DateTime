@@ -3,7 +3,7 @@ use strict;
 use DateTime;
 use DateTime::Format::Strptime;
 
-our $VERSION = '1.01';
+our $VERSION = '1.02';
 
 =head1 NAME
 
@@ -192,6 +192,7 @@ sub match_ymd_to_datetime {
                 second  => $sec,
             );
         };
+        
         return $dt;
     } else {
         return;
@@ -249,7 +250,7 @@ validated.
 If it validates and you tell D::FV to untaint this parameter it will be
 converted into a DateTime object.
 
- # make sure they died after they were born
+ # make sure the project isn't already due
  my $profile = {
    validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(due_date)],
@@ -279,6 +280,71 @@ sub match_after_today {
     } else {
         return;
     }
+}
+
+
+=head2 ymd_before_today
+
+This routine will validate the date and make sure it less than or
+equal to today (using C<< DateTime->today >>). It works just like
+L<ymd_to_datetime> in the parameters it takes.
+
+If it validates and you tell D::FV to untaint this parameter it will be
+converted into a DateTime object.
+
+ # make sure they weren't born in the future
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(birth_date)],
+   constraints             => {
+      birth_date => {
+        constraint_method => 'ymd_before_today',
+        params            => [qw(dob_year dob_month dob_day)],
+      },
+   },
+   untaint_all_constraints => 1,
+ };
+
+=cut
+
+sub match_ymd_before_today {
+    my $dt = match_ymd_to_datetime(@_);
+    if( $dt && ( $dt <= DateTime->today ) ) {
+      return $dt;
+    }
+    return; # if we get here then it's false
+}
+
+=head2 ymd_after_today
+
+This routine will validate the date and make sure it greater than or
+equal to today (using C<< DateTime->today >>). It works just like
+L<ymd_to_datetime> in the parameters it takes.
+
+If it validates and you tell D::FV to untaint this parameter it will be
+converted into a DateTime object.
+
+ # make sure the project isn't already due
+ my $profile = {
+   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
+   required                => [qw(due_date)],
+   constraints             => {
+      birth_date => {
+        constraint_method => 'ymd_after_today',
+        params            => [qw(dob_year dob_month dob_day)],
+      },
+   },
+   untaint_all_constraints => 1,
+ };
+
+=cut
+
+sub match_ymd_after_today {
+    my $dt = match_ymd_to_datetime(@_);
+    if( $dt && ( $dt >= DateTime->today ) ) {
+      return $dt;
+    }
+    return; # if we get here then it's false
 }
 
 =head2 before_datetime
