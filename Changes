@@ -1,5 +1,9 @@
 Revision history for Perl extension Data::FormValidator::Constraints::DateTime
 
+1.03 (Aug. 24, 2005)
+    - added 4.0 style of higher-order constraints
+    - removed examples of older styles
+
 1.02 (Jul. 26, 2005)
     - added ymd_before_today() and ymd_after_today() routines
 

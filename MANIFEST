@@ -3,6 +3,8 @@ lib/Data/FormValidator/Constraints/DateTime.pm
 MANIFEST			This list of files
 t/dates.t
 t/databases.t
+t/3x_dates.t
+t/3x_databases.t
 META.yml
 Makefile.PL
 Changes

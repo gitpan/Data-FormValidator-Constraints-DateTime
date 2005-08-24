@@ -9,6 +9,7 @@ WriteMakefile
           'PREREQ_PM' => {
                            'DateTime' => '0.23',
                            'DateTime::Format::Strptime' => '1.00',
+                           'Exporter' => 0,
                            'Data::FormValidator' => '3.61'
                          }
         )

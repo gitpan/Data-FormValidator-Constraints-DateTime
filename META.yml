@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: Data-FormValidator-Constraints-DateTime
-version: 1.02
+version: 1.03
 author:
   - Michael Peters <mpeters@plusthree.com>
 abstract: D::FV constraints for dates and times
@@ -9,6 +9,7 @@ requires:
   Data::FormValidator: 3.61
   DateTime: 0.23
   DateTime::Format::Strptime: 1.00
+  Exporter: 0
   perl: 5.6.1
 recommends:
   DateTime::Format::MySQL: 0.0301
@@ -16,5 +17,5 @@ recommends:
 provides:
   Data::FormValidator::Constraints::DateTime:
     file: lib/Data/FormValidator/Constraints/DateTime.pm
-    version: 1.02
+    version: 1.03
 generated_by: Module::Build version 0.2611

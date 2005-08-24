@@ -2,8 +2,31 @@ package Data::FormValidator::Constraints::DateTime;
 use strict;
 use DateTime;
 use DateTime::Format::Strptime;
+use Exporter;
+use Carp qw(croak);
+our @ISA = qw(Exporter);
+our @EXPORT_OK = qw(
+    to_datetime
+    ymd_to_datetime
+    before_today
+    after_today
+    ymd_before_today
+    ymd_after_today
+    before_datetime
+    after_datetime
+    between_datetimes
+    to_mysql_datetime
+    to_mysql_date
+    to_mysql_timestamp
+    to_pg_datetime
+);
 
-our $VERSION = '1.02';
+our %EXPORT_TAGS = (
+    all     => \@EXPORT_OK,
+    mysql   => [qw(to_mysql_datetime to_mysql_date to_mysql_timestamp)],
+    pg      => [qw(to_pg_datetime)],
+);
+our $VERSION = '1.03';
 
 =head1 NAME
 
@@ -20,17 +43,13 @@ that would be properly formatted for various database engines.
 =head1 ABSTRACT
 
   use Data::FormValidator;
+  use Data::FormValidator::Constraints::DateTime qw(:all);
     
   # create our profile
   my $profile = {
-      validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
       required                => [qw(my_date)],
-      constraints             => {
-          # my_date is in the format MM/DD/YYYY
-          my_date   => {
-            constraint_method   => 'to_datetime',
-            params              => [\'%D'], # some valid strptime format string
-          },
+      constraint_methods      => {
+          my_date   => to_datetime(\'%D'), # in the format MM/DD/YYYY
       },
       untaint_all_constraints => 1,
   };
@@ -71,22 +90,18 @@ Here are some examples:
 without a format param
 
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(my_date)],
-   constraints             => {
-       my_date => 'to_mysql_datetime',
+   constraint_methods      => {
+       my_date => to_mysql_datetime(),
    },
  };
 
 with a format param
 
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(my_date)],
-   constraints             => {
-       my_date => {
-         constraint_method => 'to_mysql_datetime',
-         params            => [\'%m/%d/%Y'],
+   constraint_methods      => {
+       my_date => to_mysql_datetime(\'%m/%d/%Y'),
    },
  };
 
@@ -104,11 +119,24 @@ have an accompanying format param.
 
 =cut
 
+sub to_datetime {
+    my $format = shift;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+        return match_to_datetime($dfv, $format);
+    }
+}
+
 sub match_to_datetime {
-    my ($self, $format) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format) = @_;
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
     # get the DateTime
     my $dt = _get_datetime_from_strp($value, $format);
     return $dt;
@@ -116,7 +144,7 @@ sub match_to_datetime {
 
 sub _get_datetime_from_strp {
     my ($value, $format) = @_;
-    $format = $$format;
+    $format = $$format if( ref $format eq 'SCALAR' );
     # create the formatter
     my $formatter = DateTime::Format::Strptime->new(
         pattern => $format
@@ -141,30 +169,49 @@ and 'second' values to use. If none are provided, then the time '00:00:00'
 will be used.
 
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(my_year)],
-   constraints             => {
-      my_year => {
-        constraint_method => 'ymd_to_datetime',
-                             # my_hour, my_min, and my_sec are optional
-        params            => [qw(my_year my_month my_day my_hour my_min my_sec)],
-      },
+   constraint_methods      => {
+      my_year => ymd_to_datetime(qw(my_year my_month my_day my_hour my_min my_sec),
    },
-   untaint_all_constraints => 1,
  };
- my $results = Data::FormValidator->check($data, $profile);
-
- #if the date was valid, then we how have a DateTime object
- my $datetime = $results->valid('my_year');
 
 =cut
 
+sub ymd_to_datetime {
+    my ($year, $month, $day, $hour, $min, $sec) = @_;
+    
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+        my $data = $dfv->get_input_data();
+        return match_ymd_to_datetime(
+            $dfv, 
+            _get_value($year,  $data),
+            _get_value($month, $data),
+            _get_value($day,   $data),
+            _get_value($hour,  $data),
+            _get_value($min,   $data),
+            _get_value($sec,   $data),
+        );
+    };
+}
+
+sub _get_value {
+    my ($value, $data) = @_;
+    if( $value && exists $data->{$value} ) {
+        return $data->{$value};
+    } else {
+        return $value;
+    }
+}
+
 sub match_ymd_to_datetime {
-    my ($self, $year, $month, $day, $hour, $min, $sec);
+    my ($dfv, $year, $month, $day, $hour, $min, $sec);
 
     # if we were called as a 'constraint_method'
     if( ref $_[0] ) {
-        ($self, $year, $month, $day, $hour, $min, $sec) = @_;
+        ($dfv, $year, $month, $day, $hour, $min, $sec) = @_;
     # else we were called as a 'constraint'
     } else {
         ($year, $month, $day, $hour, $min, $sec) = @_;
@@ -210,24 +257,32 @@ converted into a DateTime object.
 
  # make sure they weren't born in the future
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(birth_date)],
-   constraints             => {
-      birth_date => {
-        constraint_method => 'before_today',
-        params            => ['%m/%d/%Y'],
-      },
+   constraint_methods      => {
+      birth_date => before_today(\'%m/%d/%Y'),
    },
-   untaint_all_constraints => 1,
  };
 
 =cut
 
+sub before_today {
+    my $format = shift;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+        return match_before_today($dfv, $format);
+    };
+}
+
 sub match_before_today {
-    my ($self, $format) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format) = @_;
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
     # get the DateTime
     my $dt = _get_datetime_from_strp($value, $format);
     my $dt_target = DateTime->today();
@@ -252,24 +307,33 @@ converted into a DateTime object.
 
  # make sure the project isn't already due
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
-   required                => [qw(due_date)],
-   constraints             => {
-      death_date => {
-        constraint_method => 'after_today',
-        params            => ['%m/%d/%Y'],
-      },
+   required                => [qw(death_date)],
+   constraint_methods      => {
+      death_date => after_today(\'%m/%d/%Y'),
    },
    untaint_all_constraints => 1,
  };
 
 =cut
 
+sub after_today {
+    my $format = shift;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+        return match_after_today($dfv, $format);
+    };
+}
+
 sub match_after_today {
-    my ($self, $format) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format) = @_;
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
     # get the DateTime
     my $dt = _get_datetime_from_strp($value, $format);
     my $dt_target = DateTime->today();
@@ -294,18 +358,34 @@ converted into a DateTime object.
 
  # make sure they weren't born in the future
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(birth_date)],
-   constraints             => {
-      birth_date => {
-        constraint_method => 'ymd_before_today',
-        params            => [qw(dob_year dob_month dob_day)],
-      },
+   constraint_methods      => {
+      birth_date => ymd_before_today(qw(dob_year dob_month dob_day)),
    },
    untaint_all_constraints => 1,
  };
 
 =cut
+
+sub ymd_before_today {
+    my ($year, $month, $day, $hour, $min, $sec) = @_;
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+
+        my $data = $dfv->get_input_data();
+        return match_ymd_before_today(
+            $dfv, 
+            _get_value($year,  $data),
+            _get_value($month, $data),
+            _get_value($day,   $data),
+            _get_value($hour,  $data),
+            _get_value($min,   $data),
+            _get_value($sec,   $data),
+        );
+    };
+}
 
 sub match_ymd_before_today {
     my $dt = match_ymd_to_datetime(@_);
@@ -326,18 +406,34 @@ converted into a DateTime object.
 
  # make sure the project isn't already due
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(due_date)],
-   constraints             => {
-      birth_date => {
-        constraint_method => 'ymd_after_today',
-        params            => [qw(dob_year dob_month dob_day)],
-      },
+   constraint_methods      => {
+      birth_date => ymd_after_today(qw(dob_year dob_month dob_day)),
    },
    untaint_all_constraints => 1,
  };
 
 =cut
+
+sub ymd_after_today {
+    my ($year, $month, $day, $hour, $min, $sec) = @_;
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+
+        my $data = $dfv->get_input_data();
+        return match_ymd_after_today(
+            $dfv, 
+            _get_value($year,  $data),
+            _get_value($month, $data),
+            _get_value($day,   $data),
+            _get_value($hour,  $data),
+            _get_value($min,   $data),
+            _get_value($sec,   $data),
+        );
+    };
+}
 
 sub match_ymd_after_today {
     my $dt = match_ymd_to_datetime(@_);
@@ -371,27 +467,42 @@ converted into a DateTime object.
 
  # make sure they were born before 1979
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(birth_date)],
-   constraints             => {
-      birth_date => {
-        constraint_method => 'before_datetime',
-        params            => ['%m/%d/%Y', \'01/01/1979'],
-      },
+   constraint_methods      => {
+      birth_date => before_datetime(\'%m/%d/%Y', \'01/01/1979'),
    },
    untaint_all_constraints => 1,
  };
 
 =cut
 
+sub before_datetime {
+    my ($format, $date) = @_;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+    $date = $$date if( ref $date eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+
+        # are we using a real date or the name of a parameter
+        my $data = $dfv->get_input_data();
+        $date = $data->{$date} if( $data->{$date} );
+        return match_before_datetime($dfv, $format, $date);
+    };
+}
+
 sub match_before_datetime {
-    my ($self, $format, $target_date) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format, $target_date) = @_;
+    $target_date = $$target_date if( ref $target_date eq 'SCALAR' );
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
     # get the DateTime
     my $dt = _get_datetime_from_strp($value, $format);
-    my $dt_target = _get_datetime_from_strp($$target_date, $format);
+    my $dt_target = _get_datetime_from_strp($target_date, $format);
     # if we have valid DateTime objects and they have the correct
     # temporaral relationship
     if( $dt && $dt_target && $dt < $dt_target ) {
@@ -422,27 +533,42 @@ scalar ref), or a named parameter from your form (using a scalar name).
 
  # make sure they died after they were born
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(birth_date death_date)],
-   constraints             => {
-      death_date => {
-        constraint_method => 'after_datetime',
-        params            => ['%m/%d/%Y', 'birth_date'],
-      },
+   constraint_methods      => {
+      death_date => after_datetime(\'%m/%d/%Y', 'birth_date'),
    },
    untaint_all_constraints => 1,
  };
 
 =cut
 
+sub after_datetime {
+    my ($format, $date) = @_;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+    $date = $$date if( ref $date eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+
+        # are we using a real date or the name of a parameter
+        my $data = $dfv->get_input_data();
+        $date = _get_value($date, $data);
+        return match_after_datetime($dfv, $format, $date);
+    };
+}
+
 sub match_after_datetime {
-    my ($self, $format, $target_date) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format, $target_date) = @_;
+    $target_date = $$target_date if( ref $target_date eq 'SCALAR' );
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
     # get the DateTime
     my $dt = _get_datetime_from_strp($value, $format);
-    my $dt_target = _get_datetime_from_strp($$target_date, $format);
+    my $dt_target = _get_datetime_from_strp($target_date, $format);
     # if we have valid DateTime objects and they have the correct
     # temporaral relationship
     if( $dt && $dt_target && $dt > $dt_target ) {
@@ -476,28 +602,47 @@ This date (and the second) we are comparing against can either be a specified da
 
  # make sure they died after they were born
  my $profile = {
-   validator_packages      => [qw(Data::FormValidator::Constraints::DateTime)],
    required                => [qw(birth_date death_date marriage_date)],
-   constraints             => {
-      marriage_date => {
-        constraint_method => 'between_datetimes',
-        params            => ['%m/%d/%Y', 'birth_date', 'death_date'],
-      },
+   constraint_methods      => {
+      marriage_date => between_datetimes(\'%m/%d/%Y', 'birth_date', 'death_date'),
    },
    untaint_all_constraints => 1,
  };
 
 =cut
 
+sub between_datetimes {
+    my ($format, $target1, $target2) = @_;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+    $target1 = $$target1 if( ref $target1 eq 'SCALAR' );
+    $target2 = $$target2 if( ref $target2 eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+
+        # are we using a real date or the name of a parameter
+        my $data = $dfv->get_input_data();
+        $target1 = _get_value($target1, $data);
+        $target2 = _get_value($target2, $data);
+        return match_between_datetimes($dfv, $format, $target1, $target2);
+    }
+}
+
 sub match_between_datetimes {
-    my ($self, $format, $target1_date, $target2_date) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format, $target1, $target2) = @_;
+    $target1 = $$target1 if( ref $target1 eq 'SCALAR' );
+    $target2 = $$target2 if( ref $target2 eq 'SCALAR' );
+
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
     # get the DateTime
     my $dt = _get_datetime_from_strp($value, $format);
-    my $dt_target1 = _get_datetime_from_strp($$target1_date, $format);
-    my $dt_target2 = _get_datetime_from_strp($$target2_date, $format);
+    my $dt_target1 = _get_datetime_from_strp($target1, $format);
+    my $dt_target2 = _get_datetime_from_strp($target2, $format);
     # if we have valid DateTime objects and they have the correct
     # temporaral relationship
     if( 
@@ -524,11 +669,24 @@ datatype (using L<DateTime::Format::MySQL>).
 
 =cut
 
+sub to_mysql_datetime {
+    my $format = shift;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+        return match_to_mysql_datetime($dfv, $format);
+    }
+}
+
 sub match_to_mysql_datetime {
-    my ($self, $format) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format) = @_;
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
 
     # make sure they have DateTime::Format::MySQL
     eval { require DateTime::Format::MySQL; };
@@ -538,7 +696,7 @@ sub match_to_mysql_datetime {
 
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
-    if( ref $format eq 'SCALAR' ) {
+    if( $format ) {
         $dt = _get_datetime_from_strp($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
@@ -560,11 +718,24 @@ in MySQL (using L<DateTime::Format::MySQL>).
 
 =cut
 
+sub to_mysql_date {
+    my $format = shift;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+        return match_to_mysql_date($dfv, $format);
+    };
+}
+
 sub match_to_mysql_date {
-    my ($self, $format) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format) = @_;
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
 
     # make sure they have DateTime::Format::MySQL
     eval { require DateTime::Format::MySQL; };
@@ -574,7 +745,7 @@ sub match_to_mysql_date {
 
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
-    if( ref $format eq 'SCALAR' ) {
+    if( $format ) {
         $dt = _get_datetime_from_strp($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
@@ -595,16 +766,29 @@ will be validated as a MySQL TIMESTAMP datatype.
 
 =cut
 
+sub to_mysql_timestamp {
+    my $format = shift;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+        match_to_mysql_timestamp($dfv, $format);
+    };
+}
+
 sub match_to_mysql_timestamp {
-    my ($self, $format) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format) = @_;
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
     my $dt;
 
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
-    if( ref $format eq 'SCALAR' ) {
+    if( $format ) {
         $dt = _get_datetime_from_strp($value, $format);
     # else there is no format, so parse into a timestamp
     } else {
@@ -640,11 +824,24 @@ L<DateTime::Format::Pg>).
 
 =cut
 
+sub to_pg_datetime {
+    my $format = shift;
+    # dereference stuff if we need to
+    $format = $$format if( ref $format eq 'SCALAR' );
+
+    return sub {
+        my $dfv = shift;
+        croak("Must be called using 'constraint_methods'!")
+            unless( $dfv->isa('Data::FormValidator::Results') );
+        match_to_pg_datetime($dfv, $format);
+    };
+}
+
 sub match_to_pg_datetime {
-    my ($self, $format) = @_;
-    # if $self is a ref then we are called as 'constraint_method'
+    my ($dfv, $format) = @_;
+    # if $dfv is a ref then we are called as 'constraint_method'
     # else as 'constaint'
-    my $value = ref $self ? $self->get_current_constraint_value : $self;
+    my $value = ref $dfv ? $dfv->get_current_constraint_value : $dfv;
 
     # make sure they have DateTime::Format::MySQL
     eval { require DateTime::Format::Pg; };
@@ -654,7 +851,7 @@ sub match_to_pg_datetime {
 
     # if they gave us a format (through params as a scalar ref)
     # then translate the value
-    if( ref $format eq 'SCALAR' ) {
+    if( $format ) {
         $dt = _get_datetime_from_strp($value, $format);
     # else there is no format, so just use parse_datetime
     } else {
