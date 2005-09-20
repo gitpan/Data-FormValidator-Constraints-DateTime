@@ -26,7 +26,7 @@ our %EXPORT_TAGS = (
     mysql   => [qw(to_mysql_datetime to_mysql_date to_mysql_timestamp)],
     pg      => [qw(to_pg_datetime)],
 );
-our $VERSION = '1.03';
+our $VERSION = '1.04';
 
 =head1 NAME
 
@@ -57,7 +57,7 @@ that would be properly formatted for various database engines.
   # validate 'my_date'
   my $results = Data::FormValidator->check($my_input, $profile);
 
-  unless( $results->has_missing || $results->has_invalid ) {
+  if( $results->success ) {
     # if we got here then $results->valid('my_date')
     # is a valid DateTime object 
     my $datetime = $results->valid('my_date');

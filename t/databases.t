@@ -193,7 +193,7 @@ eval { require DateTime::Format::Pg };
 $HAVE_DT_FORMAT_PG = 1 if( !$@ );
 
 SKIP: {
-    skip('DateTime::Format::Pg not installed', 15)
+    skip('DateTime::Format::Pg not installed', 10)
         unless $HAVE_DT_FORMAT_PG;
     # 34..43
     # to_pg_datetime

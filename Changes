@@ -1,5 +1,8 @@
 Revision history for Perl extension Data::FormValidator::Constraints::DateTime
 
+1.04 (Sep. 20, 2005)
+    - fixed failing test when DateTime::Format::Pg is not installed
+
 1.03 (Aug. 24, 2005)
     - added 4.0 style of higher-order constraints
     - removed examples of older styles
