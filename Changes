@@ -1,5 +1,10 @@
 Revision history for Perl extension Data::FormValidator::Constraints::DateTime
 
+1.05 (Oct, 04, 2005)
+    - fixed docs to use 'ref-less' parameters
+    - other minor doc fixes
+    - same code as 1.04
+
 1.04 (Sep. 20, 2005)
     - fixed failing test when DateTime::Format::Pg is not installed
 

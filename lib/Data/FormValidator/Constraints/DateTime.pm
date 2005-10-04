@@ -26,7 +26,7 @@ our %EXPORT_TAGS = (
     mysql   => [qw(to_mysql_datetime to_mysql_date to_mysql_timestamp)],
     pg      => [qw(to_pg_datetime)],
 );
-our $VERSION = '1.04';
+our $VERSION = '1.05';
 
 =head1 NAME
 
@@ -49,7 +49,7 @@ that would be properly formatted for various database engines.
   my $profile = {
       required                => [qw(my_date)],
       constraint_methods      => {
-          my_date   => to_datetime(\'%D'), # in the format MM/DD/YYYY
+          my_date   => to_datetime('%D'), # in the format MM/DD/YYYY
       },
       untaint_all_constraints => 1,
   };
@@ -70,8 +70,8 @@ that would be properly formatted for various database engines.
 Most of the validation routines provided by this module use
 strptime(3) format strings to know what format your date string
 is in before we can process it. You specify this format for each
-date you want to validate using the 'params' array ref (see the
-example above).
+date you want to validate using by passing it to constraint
+generation routine (see the example above).
 
 We use L<DateTime::Format::Strptime> for this transformation. 
 If you need a list of these formats (if you haven't yet committed 
@@ -101,7 +101,7 @@ with a format param
  my $profile = {
    required                => [qw(my_date)],
    constraint_methods      => {
-       my_date => to_mysql_datetime(\'%m/%d/%Y'),
+       my_date => to_mysql_datetime('%m/%d/%Y'),
    },
  };
 
@@ -259,7 +259,7 @@ converted into a DateTime object.
  my $profile = {
    required                => [qw(birth_date)],
    constraint_methods      => {
-      birth_date => before_today(\'%m/%d/%Y'),
+      birth_date => before_today('%m/%d/%Y'),
    },
  };
 
@@ -309,7 +309,7 @@ converted into a DateTime object.
  my $profile = {
    required                => [qw(death_date)],
    constraint_methods      => {
-      death_date => after_today(\'%m/%d/%Y'),
+      death_date => after_today('%m/%d/%Y'),
    },
    untaint_all_constraints => 1,
  };
@@ -469,7 +469,7 @@ converted into a DateTime object.
  my $profile = {
    required                => [qw(birth_date)],
    constraint_methods      => {
-      birth_date => before_datetime(\'%m/%d/%Y', \'01/01/1979'),
+      birth_date => before_datetime('%m/%d/%Y', '01/01/1979'),
    },
    untaint_all_constraints => 1,
  };
@@ -535,7 +535,7 @@ scalar ref), or a named parameter from your form (using a scalar name).
  my $profile = {
    required                => [qw(birth_date death_date)],
    constraint_methods      => {
-      death_date => after_datetime(\'%m/%d/%Y', 'birth_date'),
+      death_date => after_datetime('%m/%d/%Y', 'birth_date'),
    },
    untaint_all_constraints => 1,
  };
@@ -604,7 +604,7 @@ This date (and the second) we are comparing against can either be a specified da
  my $profile = {
    required                => [qw(birth_date death_date marriage_date)],
    constraint_methods      => {
-      marriage_date => between_datetimes(\'%m/%d/%Y', 'birth_date', 'death_date'),
+      marriage_date => between_datetimes('%m/%d/%Y', 'birth_date', 'death_date'),
    },
    untaint_all_constraints => 1,
  };
@@ -886,6 +886,16 @@ Thanks to Plus Three, LP (http://www.plusthree.com) for sponsoring my work on th
 This module is a part of the larger L<Data::FormValidator> project. If you have
 questions, comments, bug reports or feature requests, please join the 
 L<Data::FormValidator>'s mailing list.
+
+=head1 CAVEAT
+
+When passing parameters to typical L<Data::FormValidator> constraints you pass
+plain scalars to refer to query params and scalar-refs to refer to literals. We get
+around that in this module by assuming everything could be refering to a query param,
+and if one is not found, then it's a literal. This works well unless you have query
+params with names like C<'01/02/2005'> or C<'%m/%d/%Y'>. 
+
+And if you do, shame on you for having such horrible names.
 
 =head1 SEE ALSO
 
