@@ -2,7 +2,13 @@ use Test::More;
 use strict;
 use Data::FormValidator;
 use DateTime;
-plan(tests => 61);
+my $DFV_4 = $Data::FormValidator::VERSION =~ /^4\./ ? 1 : 0;
+# only run these tests if we have D::FV 4.x
+if( $DFV_4 ) {
+    plan(tests => 61);
+} else {
+    plan(skip_all => 'D::FV 4.x not installed');
+}
 
 # 1
 use_ok('Data::FormValidator::Constraints::DateTime');

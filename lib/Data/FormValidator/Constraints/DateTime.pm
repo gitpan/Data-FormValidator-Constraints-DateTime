@@ -26,7 +26,7 @@ our %EXPORT_TAGS = (
     mysql   => [qw(to_mysql_datetime to_mysql_date to_mysql_timestamp)],
     pg      => [qw(to_pg_datetime)],
 );
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 
 =head1 NAME
 
@@ -171,7 +171,7 @@ will be used.
  my $profile = {
    required                => [qw(my_year)],
    constraint_methods      => {
-      my_year => ymd_to_datetime(qw(my_year my_month my_day my_hour my_min my_sec),
+      my_year => ymd_to_datetime(qw(my_year my_month my_day my_hour my_min my_sec)),
    },
  };
 
@@ -184,7 +184,7 @@ sub ymd_to_datetime {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
             unless( $dfv->isa('Data::FormValidator::Results') );
-        my $data = $dfv->get_input_data();
+        my $data = $dfv->get_input_data(as_hashref => 1);
         return match_ymd_to_datetime(
             $dfv, 
             _get_value($year,  $data),
@@ -374,7 +374,7 @@ sub ymd_before_today {
         croak("Must be called using 'constraint_methods'!")
             unless( $dfv->isa('Data::FormValidator::Results') );
 
-        my $data = $dfv->get_input_data();
+        my $data = $dfv->get_input_data(as_hashref => 1);
         return match_ymd_before_today(
             $dfv, 
             _get_value($year,  $data),
@@ -422,7 +422,7 @@ sub ymd_after_today {
         croak("Must be called using 'constraint_methods'!")
             unless( $dfv->isa('Data::FormValidator::Results') );
 
-        my $data = $dfv->get_input_data();
+        my $data = $dfv->get_input_data(as_hashref => 1);
         return match_ymd_after_today(
             $dfv, 
             _get_value($year,  $data),
@@ -488,7 +488,7 @@ sub before_datetime {
             unless( $dfv->isa('Data::FormValidator::Results') );
 
         # are we using a real date or the name of a parameter
-        my $data = $dfv->get_input_data();
+        my $data = $dfv->get_input_data(as_hashref => 1);
         $date = $data->{$date} if( $data->{$date} );
         return match_before_datetime($dfv, $format, $date);
     };
@@ -554,7 +554,7 @@ sub after_datetime {
             unless( $dfv->isa('Data::FormValidator::Results') );
 
         # are we using a real date or the name of a parameter
-        my $data = $dfv->get_input_data();
+        my $data = $dfv->get_input_data(as_hashref => 1);
         $date = _get_value($date, $data);
         return match_after_datetime($dfv, $format, $date);
     };
@@ -624,7 +624,7 @@ sub between_datetimes {
             unless( $dfv->isa('Data::FormValidator::Results') );
 
         # are we using a real date or the name of a parameter
-        my $data = $dfv->get_input_data();
+        my $data = $dfv->get_input_data(as_hashref => 1);
         $target1 = _get_value($target1, $data);
         $target2 = _get_value($target2, $data);
         return match_between_datetimes($dfv, $format, $target1, $target2);
