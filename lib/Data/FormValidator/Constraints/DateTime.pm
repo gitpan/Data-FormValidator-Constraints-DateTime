@@ -26,7 +26,7 @@ our %EXPORT_TAGS = (
     mysql   => [qw(to_mysql_datetime to_mysql_date to_mysql_timestamp)],
     pg      => [qw(to_pg_datetime)],
 );
-our $VERSION = '1.06';
+our $VERSION = '1.07';
 
 =head1 NAME
 
@@ -105,6 +105,39 @@ with a format param
    },
  };
 
+=head2 DateTime::Format Objects
+
+Using strptime(3) format strings gives a lot of flexibility, but sometimes
+not enough. Suppose you have a web form that allows the user to input a date
+in the format '11/21/2006' or simply '11/21/06'. A simple format string is
+not enough. To take full advantage of the DateTime project, any place that
+you can pass in a strptime(3) format string, you can also pass in a
+L<DateTime::Format> object. To solve the above problem you might have code
+that looks like this:
+
+  # your formatter code
+  package MyProject::DateTime::FlexYear;
+  use DateTime::Format::Strptime;
+
+  use DateTime::Format::Builder (
+    parsers => { 
+      parse_datetime => [
+        sub { eval { DateTime::Format::Strptime->new(pattern => '%m/%d/%Y')->parse_datetime($_[1]) } },
+        sub { eval { DateTime::Format::Strptime->new(pattern => '%m/%d/%y')->parse_datetime($_[1]) } },
+      ] 
+    }
+  );
+
+  1;
+
+  # in your web validation code
+  my $profile = {
+    required           => [qw(my_date)],
+    constraint_methods => {
+        my_date => to_mysql_datetime(MyProject::DateTime::FlexYear->new()),
+    },
+  };
+
 
 =head1 VALIDATION ROUTINES
 
@@ -122,7 +155,6 @@ have an accompanying format param.
 sub to_datetime {
     my $format = shift;
     # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
 
     return sub {
         my $dfv = shift;
@@ -145,15 +177,25 @@ sub match_to_datetime {
 sub _get_datetime_from_strp {
     my ($value, $format) = @_;
     $format = $$format if( ref $format eq 'SCALAR' );
-    # create the formatter
-    my $formatter = DateTime::Format::Strptime->new(
-        pattern => $format
-    );
-    my $dt;
+    my $formatter;
+    # if we have a simple scalar for the format
+    if( ! ref $format ) {
+        # create the formatter
+        $formatter = DateTime::Format::Strptime->new(
+            pattern => $format
+        );
+    # else we assume it's a DateTime::Format based object
+    } else {
+        $formatter = $format;
+    }
+
     # create the DateTime object
+    my $dt;
     eval { $dt = $formatter->parse_datetime($value); };
+    # set the formatter (if we can) so that the object
+    # stringifies to the same format as we parsed
     $dt->set_formatter($formatter)
-        if( $dt );
+        if( $dt && $formatter->can('format_datetime') );
     return $dt;
 }
 
@@ -267,8 +309,6 @@ converted into a DateTime object.
 
 sub before_today {
     my $format = shift;
-    # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
 
     return sub {
         my $dfv = shift;
@@ -318,8 +358,6 @@ converted into a DateTime object.
 
 sub after_today {
     my $format = shift;
-    # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
 
     return sub {
         my $dfv = shift;
@@ -479,7 +517,6 @@ converted into a DateTime object.
 sub before_datetime {
     my ($format, $date) = @_;
     # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
     $date = $$date if( ref $date eq 'SCALAR' );
 
     return sub {
@@ -545,7 +582,6 @@ scalar ref), or a named parameter from your form (using a scalar name).
 sub after_datetime {
     my ($format, $date) = @_;
     # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
     $date = $$date if( ref $date eq 'SCALAR' );
 
     return sub {
@@ -614,7 +650,6 @@ This date (and the second) we are comparing against can either be a specified da
 sub between_datetimes {
     my ($format, $target1, $target2) = @_;
     # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
     $target1 = $$target1 if( ref $target1 eq 'SCALAR' );
     $target2 = $$target2 if( ref $target2 eq 'SCALAR' );
 
@@ -671,8 +706,6 @@ datatype (using L<DateTime::Format::MySQL>).
 
 sub to_mysql_datetime {
     my $format = shift;
-    # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
 
     return sub {
         my $dfv = shift;
@@ -720,8 +753,6 @@ in MySQL (using L<DateTime::Format::MySQL>).
 
 sub to_mysql_date {
     my $format = shift;
-    # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
 
     return sub {
         my $dfv = shift;
@@ -768,8 +799,6 @@ will be validated as a MySQL TIMESTAMP datatype.
 
 sub to_mysql_timestamp {
     my $format = shift;
-    # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
 
     return sub {
         my $dfv = shift;
@@ -826,8 +855,6 @@ L<DateTime::Format::Pg>).
 
 sub to_pg_datetime {
     my $format = shift;
-    # dereference stuff if we need to
-    $format = $$format if( ref $format eq 'SCALAR' );
 
     return sub {
         my $dfv = shift;
@@ -878,6 +905,8 @@ Thanks to Plus Three, LP (http://www.plusthree.com) for sponsoring my work on th
 =item Mark Stosberg <mark@summersault.com>
 
 =item Charles Frank <cfrank@plusthree.com>
+
+=item Aaron Ross <aaronelliotross@gmail.com>
 
 =back
 

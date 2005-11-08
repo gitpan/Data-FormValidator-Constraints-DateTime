@@ -1,11 +1,15 @@
 Revision history for Perl extension Data::FormValidator::Constraints::DateTime
 
-1.06
+1.07
+    - added support for DateTime::Format objects where ever strptime(3) format strings are allowed
+    - removed unnecessary dereferencing check
+
+1.06 (Oct. 28, 2005)
     - minor doc fixes
     - fixed new higher-order constraints to work with CGI.pm instead of just a hashref
     - fixed new higher-order tests to be skipped if we are using D::FV 3.x
 
-1.05 (Oct, 04, 2005)
+1.05 (Oct. 04, 2005)
     - fixed docs to use 'ref-less' parameters
     - other minor doc fixes
     - same code as 1.04

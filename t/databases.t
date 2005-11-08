@@ -38,7 +38,7 @@ eval { require DateTime::Format::MySQL };
 $HAVE_DT_FORMAT_MYSQL = 1 if( !$@ );
 
 SKIP: {
-    skip('DateTime::Format::MySQL not installed', 45)
+    skip('DateTime::Format::MySQL not installed', 30)
         unless $HAVE_DT_FORMAT_MYSQL;
 
     # 2..11

@@ -9,3 +9,5 @@ t/3x_dates.t
 t/cgi_and_hashref.t
 t/databases.t
 t/dates.t
+t/datetime_format.t
+t/lib/DFVCDT/Test/FlexYear.pm
