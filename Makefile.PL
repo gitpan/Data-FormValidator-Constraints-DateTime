@@ -5,11 +5,14 @@ WriteMakefile
           'PL_FILES' => {},
           'INSTALLDIRS' => 'site',
           'NAME' => 'Data::FormValidator::Constraints::DateTime',
+          'EXE_FILES' => [],
           'VERSION_FROM' => 'lib/Data/FormValidator/Constraints/DateTime.pm',
+          'PM' => undef,
           'PREREQ_PM' => {
                            'DateTime' => '0.23',
                            'DateTime::Format::Strptime' => '1.00',
                            'Exporter' => 0,
+                           'DateTime::Format::Builder' => 0,
                            'Data::FormValidator' => '3.61'
                          }
         )

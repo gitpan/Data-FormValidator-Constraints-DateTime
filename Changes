@@ -1,6 +1,10 @@
 Revision history for Perl extension Data::FormValidator::Constraints::DateTime
 
-1.07
+1.08 (Dec. 12, 2005)
+    - added DateTime::Format::Builder to 'build_requires'
+    - no code changes
+
+1.07 (Nov. 08, 2005)
     - added support for DateTime::Format objects where ever strptime(3) format strings are allowed
     - removed unnecessary dereferencing check
 

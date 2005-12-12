@@ -1,10 +1,12 @@
---- #YAML:1.0
+---
 name: Data-FormValidator-Constraints-DateTime
-version: 1.07
+version: 1.08
 author:
   - Michael Peters <mpeters@plusthree.com>
 abstract: D::FV constraints for dates and times
 license: perl
+resources:
+  license: http://dev.perl.org/licenses/
 requires:
   Data::FormValidator: 3.61
   DateTime: 0.23
@@ -14,8 +16,10 @@ requires:
 recommends:
   DateTime::Format::MySQL: 0.0301
   DateTime::Format::Pg: 0.050
+build_requires:
+  DateTime::Format::Builder: 0
 provides:
   Data::FormValidator::Constraints::DateTime:
     file: lib/Data/FormValidator/Constraints/DateTime.pm
-    version: 1.07
-generated_by: Module::Build version 0.2611
+    version: 1.08
+generated_by: Module::Build version 0.2703
