@@ -2,6 +2,7 @@ package Data::FormValidator::Constraints::DateTime;
 use strict;
 use DateTime;
 use DateTime::Format::Strptime;
+use Scalar::Util qw(blessed);
 use Exporter;
 use Carp qw(croak);
 our @ISA = qw(Exporter);
@@ -26,7 +27,7 @@ our %EXPORT_TAGS = (
     mysql   => [qw(to_mysql_datetime to_mysql_date to_mysql_timestamp)],
     pg      => [qw(to_pg_datetime)],
 );
-our $VERSION = '1.08';
+our $VERSION = '1.09';
 
 =head1 NAME
 
@@ -148,7 +149,11 @@ by this module.
 
 The routine will validate the date aginst a strptime(3) format and
 change the date string into a DateTime object. This routine B<must> 
-have an accompanying format param.
+have an accompanying L<strptime|DateTime::Format::Strptime> format param.
+
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
 
 =cut
 
@@ -159,7 +164,7 @@ sub to_datetime {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
         return match_to_datetime($dfv, $format);
     }
 }
@@ -217,6 +222,10 @@ will be used.
    },
  };
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub ymd_to_datetime {
@@ -225,7 +234,7 @@ sub ymd_to_datetime {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
         my $data = $dfv->get_input_data(as_hashref => 1);
         return match_ymd_to_datetime(
             $dfv, 
@@ -292,7 +301,7 @@ sub match_ymd_to_datetime {
 
 This routine will validate the date and make sure it less than or
 equal to today (using C<< DateTime->today >>). It takes one param
-which is the strptime format string for the date.
+which is the <strptime|DateTime::Format::Strptime> format string for the date.
 
 If it validates and you tell D::FV to untaint this parameter it will be
 converted into a DateTime object.
@@ -305,6 +314,10 @@ converted into a DateTime object.
    },
  };
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub before_today {
@@ -313,7 +326,7 @@ sub before_today {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
         return match_before_today($dfv, $format);
     };
 }
@@ -339,7 +352,7 @@ sub match_before_today {
 
 This routine will validate the date and make sure it is greater
 than or equal to today (using C<< DateTime->today() >>). It takes
-only one param, which is the strptime format for the date being
+only one param, which is the L<strptime|DateTime::Format::Strptime> format for the date being
 validated.
 
 If it validates and you tell D::FV to untaint this parameter it will be
@@ -354,6 +367,10 @@ converted into a DateTime object.
    untaint_all_constraints => 1,
  };
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub after_today {
@@ -362,7 +379,7 @@ sub after_today {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
         return match_after_today($dfv, $format);
     };
 }
@@ -403,6 +420,10 @@ converted into a DateTime object.
    untaint_all_constraints => 1,
  };
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub ymd_before_today {
@@ -410,7 +431,7 @@ sub ymd_before_today {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
 
         my $data = $dfv->get_input_data(as_hashref => 1);
         return match_ymd_before_today(
@@ -451,6 +472,10 @@ converted into a DateTime object.
    untaint_all_constraints => 1,
  };
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub ymd_after_today {
@@ -458,7 +483,7 @@ sub ymd_after_today {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
 
         my $data = $dfv->get_input_data(as_hashref => 1);
         return match_ymd_after_today(
@@ -488,7 +513,7 @@ the specified date. It takes two params:
 
 =over
 
-=item * first, the strptime format 
+=item * first, the L<strptime|DateTime::Format::Strptime> format 
 
 (for both the date we are validating and also the date we want to 
 compare against) 
@@ -512,6 +537,10 @@ converted into a DateTime object.
    untaint_all_constraints => 1,
  };
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub before_datetime {
@@ -522,7 +551,7 @@ sub before_datetime {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
 
         # are we using a real date or the name of a parameter
         my $data = $dfv->get_input_data(as_hashref => 1);
@@ -556,7 +585,7 @@ the specified date. It takes two params:
 
 =over
 
-=item * first, the strptime format 
+=item * first, the L<strptime|DateTime::Format::Strptime> format 
 
 (for both the date we are validating and also the date we want to 
 compare against)
@@ -577,6 +606,10 @@ scalar ref), or a named parameter from your form (using a scalar name).
    untaint_all_constraints => 1,
  };
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub after_datetime {
@@ -587,7 +620,7 @@ sub after_datetime {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
 
         # are we using a real date or the name of a parameter
         my $data = $dfv->get_input_data(as_hashref => 1);
@@ -622,7 +655,7 @@ takes three params:
 
 =over
 
-=item * first, the strptime format 
+=item * first, the L<strptime|DateTime::Format::Strptime> format 
 
 (for both the date we are validating and also the dates we want to 
 compare against)
@@ -645,6 +678,10 @@ This date (and the second) we are comparing against can either be a specified da
    untaint_all_constraints => 1,
  };
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub between_datetimes {
@@ -656,7 +693,7 @@ sub between_datetimes {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
 
         # are we using a real date or the name of a parameter
         my $data = $dfv->get_input_data(as_hashref => 1);
@@ -702,6 +739,10 @@ suitable for MySQL. If you don't provide a format parameter then
 this routine will just validate the data as a valid MySQL DATETIME
 datatype (using L<DateTime::Format::MySQL>).
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub to_mysql_datetime {
@@ -710,7 +751,7 @@ sub to_mysql_datetime {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
         return match_to_mysql_datetime($dfv, $format);
     }
 }
@@ -749,6 +790,10 @@ suitable for MySQL. If you don't provide a format param then
 this routine will validate the data as a valid DATE datatype
 in MySQL (using L<DateTime::Format::MySQL>).
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub to_mysql_date {
@@ -757,7 +802,7 @@ sub to_mysql_date {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
         return match_to_mysql_date($dfv, $format);
     };
 }
@@ -795,6 +840,10 @@ The routine will change the date string into a TIMESTAMP datatype
 suitable for MySQL. If you don't provide a format then the data
 will be validated as a MySQL TIMESTAMP datatype.
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub to_mysql_timestamp {
@@ -803,7 +852,7 @@ sub to_mysql_timestamp {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
         match_to_mysql_timestamp($dfv, $format);
     };
 }
@@ -851,6 +900,10 @@ suitable for PostgreSQL. If you don't provide a format then the
 data will validated as a DATETIME datatype in PostgresSQL (using
 L<DateTime::Format::Pg>).
 
+If the value is untainted (using C<untaint_all_constraints> or
+C<untaint_constraint_fields>, it will change the date string into a DateTime
+object.
+
 =cut
 
 sub to_pg_datetime {
@@ -859,7 +912,7 @@ sub to_pg_datetime {
     return sub {
         my $dfv = shift;
         croak("Must be called using 'constraint_methods'!")
-            unless( $dfv->isa('Data::FormValidator::Results') );
+            unless( blessed $dfv && $dfv->isa('Data::FormValidator::Results') );
         match_to_pg_datetime($dfv, $format);
     };
 }

@@ -1,5 +1,10 @@
 Revision history for Perl extension Data::FormValidator::Constraints::DateTime
 
+1.09 (Dec. 19, 2005)
+    - now using Scalar::Util::blessed to check if the $dfv is really an object before calling
+        isa() to provide better diagnostics if the user does something they aren't supposed to
+    - more doc improvements
+
 1.08 (Dec. 12, 2005)
     - added DateTime::Format::Builder to 'build_requires'
     - no code changes
