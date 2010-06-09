@@ -27,7 +27,7 @@ our %EXPORT_TAGS = (
     mysql   => [qw(to_mysql_datetime to_mysql_date to_mysql_timestamp)],
     pg      => [qw(to_pg_datetime)],
 );
-our $VERSION = '1.10';
+our $VERSION = '1.11';
 
 =head1 NAME
 
@@ -983,4 +983,10 @@ And if you do, shame on you for having such horrible names.
 
 L<Data::FormValidator>, L<DateTime>. L<DateTime::Format::Strptime>,
 L<DateTime::Format::MySQL>, L<DateTime::Format::Pg>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright Michael Peters 2010, all rights reserved.
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
